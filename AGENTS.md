@@ -19,6 +19,13 @@ unreleased as of 2026-05-25 — expect breakage on upgrades.
 - After bumping either pin, run `npm install && npx nuxt prepare` and re-verify
   both `/` and `/api/hello` return 200. Nightly drops break things.
 
+**Commit `package-lock.json`.** With nightly dist-tags, an unlocked install
+resolves a different version on every CI run. When Vercel restores a build
+cache from a prior deploy but installs *newer* nightly versions, the cached
+virtual modules (e.g. `.nuxt/fetch.server.mjs`) reference imports the new
+Nuxt/Nitro pair doesn't generate, and Rolldown fails to resolve `"nitro"`.
+The lockfile is what stops the drift.
+
 To check what actually got installed:
 
 ```sh
