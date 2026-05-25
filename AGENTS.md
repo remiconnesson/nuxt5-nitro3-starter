@@ -67,6 +67,54 @@ this issue is server-side only.
   reflexively.
 - Node 24 LTS. Older Node may break the rolldown builder.
 
+## Deploying to Vercel
+
+This repo deploys cleanly to Vercel with **zero config** — no `vercel.json`,
+no `vercel.ts`. Nuxt auto-detects the `vercel` Nitro preset from the build
+environment and emits a `.output/` that Vercel's build pipeline consumes
+directly.
+
+What you'll see in a healthy build log:
+
+```
+●  Nuxt 5.0.0-... (with Nitro 3.0.260522-beta, Vite 8.0.14 and Vue 3.5.34)
+●  Nitro preset: vercel
+```
+
+Production runtime is Node 24 LTS (Vercel's current default). Don't pin
+`engines.node` lower — the rolldown builder needs modern Node.
+
+### The build cache footgun
+
+Vercel restores `node_modules/.cache/nuxt/` and `.nuxt/` from the previous
+deploy. On a nightly stack that's dangerous: if the install resolves a
+newer Nuxt/Nitro than the cached `.nuxt` was generated against, you get
+
+```
+Rolldown failed to resolve import "nitro" from
+  "virtual:nuxt:.../.nuxt/fetch.server.mjs".
+```
+
+Two mitigations, in order:
+
+1. **Keep `package-lock.json` committed.** This is the durable fix. Same
+   lockfile → same nightly versions → cache stays valid.
+2. If you bump nightly versions and the next deploy fails with the
+   resolve error above, force one clean rebuild to flush the cache:
+   `vercel deploy --prod --force` (or click "Redeploy" with "Use existing
+   Build Cache" **off** in the Vercel UI). Subsequent deploys re-cache
+   from the clean state.
+
+### Verifying a deploy
+
+```sh
+curl -i https://<your-deploy>.vercel.app/            # → 200, SSR'd HTML
+curl -i https://<your-deploy>.vercel.app/api/hello   # → 200, JSON from Nitro
+```
+
+If `/` works but `/api/*` 500s, it's almost always the h3 v2 rename
+(`defineEventHandler` → `defineHandler`) — see the section above.
+
 ## When something breaks
 
 1. Check the log line at startup — it prints the exact Nuxt + Nitro + Vite + Vue
